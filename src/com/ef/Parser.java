@@ -14,11 +14,6 @@ public class Parser {
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");
             conn = DriverManager.getConnection(host, username, password);
-            Statement stmt = conn.createStatement();
-            ResultSet rs = stmt.executeQuery("select * from ipaddress");
-            while(rs.next()) {
-                System.out.println(rs.getInt(1) + "  " + rs.getString(2));
-            }
         } catch (SQLException | ClassNotFoundException e) {
             e.printStackTrace();
             closeConnection(conn);
@@ -30,9 +25,16 @@ public class Parser {
                 closeConnection(conn);
                 System.exit(-1);
             }
-
+            DataChecker.checkData(conn, arguments);
         } else {
-
+            if (arguments.date == null || arguments.duration == "" || arguments.threshold < 0) {
+                System.out.println("Params startdate, duration, and/or threshold were not entered.");
+                System.out.println("Uploading data to database, but not checking for banned IPs.");
+                DataUploader.uploadData(conn, arguments);
+            } else {
+                DataUploader.uploadData(conn, arguments);
+                DataChecker.checkData(conn, arguments);
+            }
         }
         closeConnection(conn);
         System.exit(0);
