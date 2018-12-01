@@ -1,5 +1,8 @@
 package com.ef;
 
+/**
+ * This class outputs the help text to the console then exits.
+ */
 public class Help {
     public static void help() {
         System.out.println("Arguments include:");
@@ -16,6 +19,12 @@ public class Help {
         System.out.println("--threshold=200");
         System.out.println("Integer value of limit of connection attempts before ip address ");
         System.out.println("is banned. Default -1 (only allowed for reading file, not for checking IPs).");
+        System.out.println("--host=jdbc:mysql://localhost:3306/accesslog");
+        System.out.println("Specifies the host database to connect to.");
+        System.out.println("--username=root");
+        System.out.println("Specifies the username used to connect to the database.");
+        System.out.println("--password=password");
+        System.out.println("Specifies the password used to connect to the database.");
         System.exit(0);
     }
 }
