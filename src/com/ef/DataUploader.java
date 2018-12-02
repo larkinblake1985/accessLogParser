@@ -8,10 +8,8 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.text.ParseException;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
@@ -25,9 +23,13 @@ import java.sql.Timestamp;
 public class DataUploader {
 
     public static void uploadData(Connection conn, Arguments arguments) {
+        System.out.println("Reading lines from file.");
         List<LogLine> logLines = readLines(arguments.getAccesslog());
+        System.out.println("Reading done. Processing lines from file.");
         logLines = processLines(logLines, arguments);
+        System.out.println("Processing done. Loading lines into database.");
         loadLines(conn, logLines);
+        System.out.println("Upload complete.");
     }
 
     /**
@@ -42,15 +44,7 @@ public class DataUploader {
         if (arguments.getDate() == null || arguments.getDuration().equals("")) {
             return logLines;
         } else {
-            Date finalDate;
-            Calendar calendar = Calendar.getInstance();
-            calendar.setTime(arguments.getDate());
-            if (arguments.getDuration().equalsIgnoreCase("daily")) {
-                calendar.add(Calendar.DAY_OF_YEAR, 1);
-            } else if (arguments.getDuration().equalsIgnoreCase("hourly")) {
-                calendar.add(Calendar.HOUR_OF_DAY, 1);
-            }
-            finalDate = calendar.getTime();
+            Date finalDate = Utilities.getFinalDate(arguments);
             for (Iterator<LogLine> iterator = logLines.iterator(); iterator.hasNext();) {
                 LogLine logLine = iterator.next();
                 if (logLine.getDate().compareTo(arguments.getDate()) < 0 || finalDate.compareTo(logLine.getDate()) < 0) {
@@ -65,63 +59,41 @@ public class DataUploader {
      * Loads current lines into the database, checking for duplicates first.
      */
     private static void loadLines(Connection conn, List<LogLine> logLines) {
-        int ipAddressesAdded = 0;
         int accessLogAdded = 0;
         try {
             PreparedStatement statement;
             ResultSet resultSet;
             for (Iterator<LogLine> iterator = logLines.iterator(); iterator.hasNext(); ) {
-                Integer ipAddress_ID = null;
-                LogLine logLine = iterator.next();
-                String selectIPAddress = "SELECT * FROM ipaddress WHERE ipaddress = ?";
-                statement = conn.prepareStatement(selectIPAddress);
-                statement.setString(1, logLine.getIpAddress());
-                resultSet = statement.executeQuery();
-                if(resultSet.isBeforeFirst()) {
-                   resultSet.next();
-                   ipAddress_ID = resultSet.getInt("id");
-
-                   String selectAccessLog = "SELECT * FROM accesslog WHERE ipaddress_ID = ? AND Date = ? AND Request = ? AND Status = ? AND UserAgent = ?";
-                   statement = conn.prepareStatement(selectAccessLog);
-                   statement.setInt(1, ipAddress_ID);
-                   statement.setTimestamp(2, new Timestamp(logLine.getDate().getTime()));
-                   statement.setString(3, logLine.getRequest());
-                   statement.setInt(4, logLine.getStatus());
-                   statement.setString(5, logLine.getUserAgent());
-                   resultSet = statement.executeQuery();
-                   if (resultSet.isBeforeFirst()) {
-                       continue;
-                   }
-                } else {
-                    String insertIPAddress = "INSERT INTO ipaddress (ipaddress) VALUES (?)";
-                    statement = conn.prepareStatement(insertIPAddress);
-                    statement.setString(1, logLine.getIpAddress());
-                    statement.executeUpdate();
-                    ipAddressesAdded++;
-                }
-                if (ipAddress_ID == null) {
-                    statement = conn.prepareStatement(selectIPAddress);
-                    statement.setString(1, logLine.getIpAddress());
-                    resultSet = statement.executeQuery();
-                    resultSet.next();
-                    ipAddress_ID = resultSet.getInt("id");
-                }
-                String insertAccessLog = "INSERT INTO accesslog (ipaddress_ID, Date, Request, Status, UserAgent) VALUES (?, ?, ?, ?, ?)";
-                statement = conn.prepareStatement(insertAccessLog);
-                statement.setInt(1, ipAddress_ID);
-                statement.setTimestamp(2, new Timestamp(logLine.getDate().getTime()));
-                statement.setString(3, logLine.getRequest());
-                statement.setInt(4, logLine.getStatus());
-                statement.setString(5, logLine.getUserAgent());
-                statement.executeUpdate();
-                accessLogAdded++;
+               LogLine logLine = iterator.next();
+               String selectAccessLog = "SELECT * FROM accesslog WHERE ipaddress = ? AND Date = ? AND Request = ? AND Status = ? AND UserAgent = ?";
+               statement = conn.prepareStatement(selectAccessLog);
+               statement.setString(1, logLine.getIpAddress());
+               statement.setTimestamp(2, new Timestamp(logLine.getDate().getTime()));
+               statement.setString(3, logLine.getRequest());
+               statement.setInt(4, logLine.getStatus());
+               statement.setString(5, logLine.getUserAgent());
+               resultSet = statement.executeQuery();
+               if (resultSet.isBeforeFirst()) {
+                   System.out.println("Skipping adding access log. Record already exists.");
+                   continue;
+               }
+               String insertAccessLog = "INSERT INTO accesslog (ipaddress, Date, Request, Status, UserAgent) VALUES (?, ?, ?, ?, ?)";
+               statement = conn.prepareStatement(insertAccessLog);
+               statement.setString(1, logLine.getIpAddress());
+               statement.setTimestamp(2, new Timestamp(logLine.getDate().getTime()));
+               statement.setString(3, logLine.getRequest());
+               statement.setInt(4, logLine.getStatus());
+               statement.setString(5, logLine.getUserAgent());
+               statement.executeUpdate();
+               accessLogAdded++;
+               System.out.println("Added record to access logs.");
             }
         } catch (SQLException e) {
             e.printStackTrace();
             System.out.println("Failed to create statement for database connection.");
+            Utilities.closeConnection(conn);
             System.exit(-1);
         }
-        System.out.println(ipAddressesAdded + " IP Addresses added to database.");
         System.out.println(accessLogAdded + " Access Log Records added to database.");
     }
 

@@ -38,13 +38,13 @@ public class Parser {
             conn = DriverManager.getConnection(arguments.getHost() + ssl, arguments.getUsername(), arguments.getPassword());
         } catch (SQLException | ClassNotFoundException e) {
             e.printStackTrace();
-            closeConnection(conn);
+            Utilities.closeConnection(conn);
             System.exit(-1);
         }
         if (arguments.getAccesslog().equals("")) {
             if (arguments.getDate() == null || arguments.getDuration().equals("") || arguments.getThreshold() < 0) {
                 System.out.println("Invalid arguments. Please provide startdate, duration, and threshold.");
-                closeConnection(conn);
+                Utilities.closeConnection(conn);
                 System.exit(-1);
             }
             DataChecker.checkData(conn, arguments);
@@ -58,20 +58,7 @@ public class Parser {
                 DataChecker.checkData(conn, arguments);
             }
         }
-        closeConnection(conn);
+        Utilities.closeConnection(conn);
         System.exit(0);
-    }
-
-    /**
-     * This method attempts to close the connection passed in.
-     * If it fails, it prints a stack trace.
-     * @param conn : Connection object to close.
-     */
-    private static void closeConnection(Connection conn) {
-        try {
-            conn.close();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
     }
 }

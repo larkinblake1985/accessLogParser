@@ -29,7 +29,7 @@ public class LogLine {
         this.request = request;
         this.userAgent = userAgent;
         this.status = Integer.parseInt(status);
-        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
         this.date = format.parse(date);
     }
 
